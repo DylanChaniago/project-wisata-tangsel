@@ -13,6 +13,7 @@ class SearchManager {
     init() {
         this.bindEvents();
         this.initializeCategoryCounts();
+        console.log('✅ SearchManager initialized');
     }
 
     bindEvents() {
@@ -37,6 +38,9 @@ class SearchManager {
                 }
                 this.toggleClearButton();
             });
+            
+            // Initialize clear button state
+            this.toggleClearButton();
         }
 
         if (this.searchClear) {
@@ -45,7 +49,7 @@ class SearchManager {
             });
         }
 
-        // Filter events
+        // Filter events - DIPERBAIKI
         this.filterButtons.forEach(button => {
             button.addEventListener('click', () => {
                 this.applyFilter(button);
@@ -92,6 +96,8 @@ class SearchManager {
                 window.navigationManager.showSection('no-results');
             }
         }
+        
+        console.log(`🔍 Pencarian: "${query}" - ${hasResults ? 'Ditemukan' : 'Tidak ditemukan'}`);
     }
 
     showAllSections() {
@@ -130,7 +136,10 @@ class SearchManager {
             
             if (title.includes(query) || description.includes(query) || districtName.includes(query)) {
                 card.style.display = 'block';
-                card.closest('.section').style.display = 'block';
+                const parentSection = card.closest('.section');
+                if (parentSection) {
+                    parentSection.style.display = 'block';
+                }
                 hasResults = true;
             } else {
                 card.style.display = 'none';
@@ -142,12 +151,19 @@ class SearchManager {
 
     applyFilter(button) {
         // Remove active class from all buttons
-        this.filterButtons.forEach(btn => btn.classList.remove('active'));
+        this.filterButtons.forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+        
         // Add active class to clicked button
         button.classList.add('active');
+        button.setAttribute('aria-pressed', 'true');
         
         const filter = button.getAttribute('data-filter');
         this.currentFilter = filter;
+        
+        console.log(`🎯 Filter diterapkan: ${filter}`);
         
         // Show all cards if filter is 'all'
         if (filter === 'all') {
@@ -179,7 +195,7 @@ class SearchManager {
             }
         });
         
-        console.log(`Found ${visibleCount} destinations for category: ${filter}`);
+        console.log(`📊 Filter "${filter}": ${visibleCount} destinasi ditemukan`);
         
         // Show message if no results
         if (visibleCount === 0) {
@@ -189,9 +205,8 @@ class SearchManager {
 
     showNoResultsForFilter(filter) {
         const categoryName = getCategoryName(filter);
-        console.log(`No destinations found for category: ${categoryName}`);
+        console.log(`❌ Tidak ada destinasi untuk kategori: ${categoryName}`);
         
-        // You could show a specific message here
         if (typeof showToast === 'function') {
             showToast(`Tidak ada destinasi untuk kategori ${categoryName}`);
         }
@@ -205,6 +220,7 @@ class SearchManager {
         
         // Reset to show all cards
         this.showAllCards();
+        this.showAllSections();
         
         // Reset filter buttons to 'all'
         const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"]');
@@ -216,6 +232,8 @@ class SearchManager {
         if (window.navigationManager) {
             window.navigationManager.showSection('home');
         }
+        
+        console.log('🧹 Pencarian dan filter direset');
     }
 
     toggleClearButton() {
@@ -228,10 +246,21 @@ class SearchManager {
         }
     }
 
+    applyCurrentFilter() {
+        if (this.currentFilter && this.currentFilter !== 'all') {
+            const filterBtn = document.querySelector(`.filter-btn[data-filter="${this.currentFilter}"]`);
+            if (filterBtn) {
+                this.applyFilter(filterBtn);
+            }
+        }
+    }
+
     initializeCategoryCounts() {
         // Initialize category counts from data.js
         if (typeof initializeCategoryCounts === 'function') {
-            initializeCategoryCounts();
+            setTimeout(() => {
+                initializeCategoryCounts();
+            }, 1500);
         }
     }
 }

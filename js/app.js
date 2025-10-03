@@ -4,6 +4,9 @@ class App {
     constructor() {
         this.isInitialized = false;
         this.currentSection = 'home';
+        this.modules = {};
+        this.initializationAttempts = 0;
+        this.maxInitializationAttempts = 5;
         this.init();
     }
 
@@ -14,30 +17,20 @@ class App {
             // Show loading state
             this.showLoading();
             
-            // Initialize core modules first
-            await this.initializeCoreModules();
+            // Check if all required modules are available
+            if (!this.areModulesAvailable()) {
+                console.warn('⚠️ Beberapa modul belum tersedia, menunggu...');
+                await this.waitForModules();
+            }
             
-            // Initialize additional features
-            this.initializeAdditionalFeatures();
-            
-            // Set up event listeners
-            this.bindGlobalEvents();
-            
-            // Initialize responsive features
-            this.initializeResponsiveFeatures();
-            
-            // Show welcome experience
-            setTimeout(() => {
-                this.showWelcomeExperience();
-            }, 100);
+            // Initialize dengan urutan yang benar
+            await this.initializeWithProperOrder();
             
             // Mark as initialized
             this.isInitialized = true;
             
-            // Hide loading
-            setTimeout(() => {
-                this.hideLoading();
-            }, 800);
+            // Final setup
+            await this.finalizeInitialization();
             
             console.log('🎉 Aplikasi Wisata Tangerang Selatan berhasil diinisialisasi');
             
@@ -47,117 +40,259 @@ class App {
         }
     }
 
-    async initializeCoreModules() {
-        console.log('🔄 Menginisialisasi modul inti...');
+    areModulesAvailable() {
+        const requiredModules = [
+            'ThemeManager', 'NavigationManager', 'SearchManager', 
+            'FavoritesManager', 'StatisticsManager', 'MobileNavigation', 
+            'RenderManager'
+        ];
         
-        // Initialize utilities first
+        const availableModules = requiredModules.filter(module => 
+            typeof window[module] !== 'undefined'
+        );
+        
+        console.log(`📦 Modul tersedia: ${availableModules.length}/${requiredModules.length}`);
+        
+        return availableModules.length >= 3; // Minimal 3 modul critical
+    }
+
+    async waitForModules() {
+        return new Promise((resolve) => {
+            const checkModules = () => {
+                this.initializationAttempts++;
+                
+                if (this.areModulesAvailable() || this.initializationAttempts >= this.maxInitializationAttempts) {
+                    resolve();
+                } else {
+                    console.log(`⏳ Menunggu modul... (attempt ${this.initializationAttempts})`);
+                    setTimeout(checkModules, 500);
+                }
+            };
+            
+            checkModules();
+        });
+    }
+
+    async initializeWithProperOrder() {
+        console.log('🔄 Menginisialisasi dengan urutan yang benar...');
+        
+        // Step 1: Initialize core dependencies
+        await this.initializeCoreDependencies();
+        
+        // Step 2: Initialize data module
+        await this.initializeDataModule();
+        
+        // Step 3: Initialize UI managers dengan error handling
+        await this.initializeUIManagers();
+        
+        // Step 4: Initialize feature modules
+        await this.initializeFeatureModules();
+        
+        // Step 5: Setup event listeners
+        await this.setupEventListeners();
+    }
+
+    async initializeCoreDependencies() {
+        console.log('📦 Menginisialisasi dependencies inti...');
+        
+        // Initialize utilities
         if (typeof initModal === 'function') {
             initModal();
+            console.log('✅ Modal utilities diinisialisasi');
         }
         
-        await this.delay(50);
+        await this.delay(100);
+    }
+
+    async initializeDataModule() {
+        console.log('🗃️ Memuat modul data...');
         
-        // Initialize theme manager
-        if (typeof ThemeManager !== 'undefined') {
-            try {
-                window.themeManager = new ThemeManager();
-                console.log('✅ Manajer tema diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi tema:', error);
+        // Pastikan data.js sudah dimuat
+        if (typeof getAllDestinations === 'function') {
+            const destinations = getAllDestinations();
+            console.log(`📊 Data destinasi tersedia: ${destinations.length} destinasi`);
+            
+            // Initialize category counts
+            await this.initializeCategoryCounts();
+        } else {
+            throw new Error('Modul data tidak tersedia');
+        }
+        
+        await this.delay(100);
+    }
+
+    async initializeCategoryCounts() {
+        try {
+            if (typeof initializeCategoryCounts === 'function') {
+                initializeCategoryCounts();
+                console.log('✅ Category counts diinisialisasi');
             }
+            
+            // Update display dengan delay
+            setTimeout(() => {
+                if (typeof updateCategoryCountsDisplay === 'function') {
+                    updateCategoryCountsDisplay();
+                }
+            }, 500);
+        } catch (error) {
+            console.warn('⚠️ Gagal inisialisasi category counts:', error);
         }
+    }
+
+    async initializeUIManagers() {
+        console.log('🎨 Menginisialisasi UI managers...');
         
-        await this.delay(50);
+        // Theme Manager - critical
+        await this.initializeModule('themeManager', 'ThemeManager', 'manajer tema', true);
         
-        // Initialize navigation
-        if (typeof NavigationManager !== 'undefined') {
-            try {
-                window.navigationManager = new NavigationManager();
-                console.log('✅ Manajer navigasi diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi navigasi:', error);
+        // Navigation Manager - critical  
+        await this.initializeModule('navigationManager', 'NavigationManager', 'manajer navigasi', true);
+        
+        // Mobile Navigation
+        await this.initializeModule('mobileNavigation', 'MobileNavigation', 'navigasi mobile', false);
+        
+        await this.delay(100);
+    }
+
+    async initializeFeatureModules() {
+        console.log('⚙️ Menginisialisasi modul fitur...');
+        
+        // Search Manager
+        await this.initializeModule('searchManager', 'SearchManager', 'manajer pencarian', true);
+        
+        // Favorites Manager
+        await this.initializeModule('favoritesManager', 'FavoritesManager', 'manajer favorit', true);
+        
+        // Statistics Manager
+        await this.initializeModule('statisticsManager', 'StatisticsManager', 'manajer statistik', false);
+        
+        // Render Manager - critical
+        await this.initializeModule('renderManager', 'RenderManager', 'manajer render', true);
+        
+        await this.delay(150);
+    }
+
+    async initializeModule(globalVar, className, description, isCritical = false) {
+        try {
+            if (typeof window[className] !== 'undefined') {
+                window[globalVar] = new window[className]();
+                this.modules[globalVar] = { status: 'success', description };
+                console.log(`✅ ${description} diinisialisasi`);
+            } else {
+                const errorMsg = `${className} tidak tersedia`;
+                this.modules[globalVar] = { status: 'failed', description, error: errorMsg };
+                
+                if (isCritical) {
+                    console.error(`❌ ${description} GAGAL: ${errorMsg}`);
+                } else {
+                    console.warn(`⚠️ ${description} tidak tersedia`);
+                }
             }
+        } catch (error) {
+            const errorMsg = error.message;
+            this.modules[globalVar] = { status: 'error', description, error: errorMsg };
+            console.error(`❌ Gagal menginisialisasi ${description}:`, error);
         }
         
-        await this.delay(50);
+        await this.delay(30);
+    }
+
+    async setupEventListeners() {
+        console.log('🔗 Mengatur event listener...');
         
-        // Initialize search functionality
-        if (typeof SearchManager !== 'undefined') {
-            try {
-                window.searchManager = new SearchManager();
-                console.log('✅ Manajer pencarian diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi pencarian:', error);
-            }
+        this.setupErrorHandling();
+        this.setupConnectivityMonitoring();
+        this.setupPerformanceMonitoring();
+        this.setupBackToTop();
+        this.setupKeyboardShortcuts();
+        this.setupVisibilityHandler();
+        this.setupResizeHandler();
+        
+        console.log('✅ Event listener berhasil diatur');
+    }
+
+    async finalizeInitialization() {
+        console.log('🎯 Finalisasi inisialisasi...');
+        
+        // Show welcome experience
+        this.showWelcomeExperience();
+        
+        // Initialize additional features (non-critical)
+        this.initializeAdditionalFeatures();
+        
+        // Hide loading
+        setTimeout(() => {
+            this.hideLoading();
+            this.performFinalUpdates();
+        }, 1000);
+    }
+
+    showWelcomeExperience() {
+        const firstVisit = !localStorage.getItem('hasVisited');
+        
+        if (firstVisit) {
+            setTimeout(() => {
+                this.showToast('🎉 Selamat datang di Wisata Tangerang Selatan!');
+                localStorage.setItem('hasVisited', 'true');
+            }, 1000);
         }
         
-        await this.delay(50);
+        // Update berbagai tampilan dengan staggered delay
+        const updates = [
+            { fn: () => this.updateStatistics(), delay: 800 },
+            { fn: () => this.updateFavoriteCounts(), delay: 1000 },
+            { fn: () => this.updateCategoryCounts(), delay: 1200 },
+            { fn: () => this.updateNavigationState(), delay: 1500 }
+        ];
         
-        // Initialize favorites manager
-        if (typeof FavoritesManager !== 'undefined') {
-            try {
-                window.favoritesManager = new FavoritesManager();
-                console.log('✅ Manajer favorit diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi favorit:', error);
-            }
+        updates.forEach(({ fn, delay }) => {
+            setTimeout(fn, delay);
+        });
+    }
+
+    updateStatistics() {
+        if (this.modules.statisticsManager?.status === 'success' && typeof updateStatistics === 'function') {
+            updateStatistics();
         }
-        
-        await this.delay(50);
-        
-        // Initialize mobile navigation
-        if (typeof MobileNavigation !== 'undefined') {
-            try {
-                window.mobileNavigation = new MobileNavigation();
-                console.log('✅ Navigasi mobile diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi navigasi mobile:', error);
-            }
+    }
+
+    updateFavoriteCounts() {
+        if (this.modules.favoritesManager?.status === 'success' && window.favoritesManager) {
+            window.favoritesManager.updateFavoriteCounts();
         }
-        
-        await this.delay(50);
-        
-        // Initialize render manager
-        if (typeof RenderManager !== 'undefined') {
-            try {
-                window.renderManager = new RenderManager();
-                console.log('✅ Manajer render diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi render:', error);
-            }
+    }
+
+    updateCategoryCounts() {
+        if (typeof updateCategoryCountsDisplay === 'function') {
+            updateCategoryCountsDisplay();
         }
-        
-        await this.delay(50);
-        
-        // Initialize statistics
-        if (typeof StatisticsManager !== 'undefined') {
-            try {
-                window.statisticsManager = new StatisticsManager();
-                console.log('✅ Statistik diinisialisasi');
-            } catch (error) {
-                console.error('❌ Gagal menginisialisasi statistik:', error);
-            }
+    }
+
+    updateNavigationState() {
+        if (this.modules.navigationManager?.status === 'success' && window.navigationManager) {
+            const currentSection = window.navigationManager.getCurrentSection();
+            window.navigationManager.updateActiveNavStates(currentSection);
         }
-        
-        console.log('✅ Semua modul inti berhasil diinisialisasi');
     }
 
     initializeAdditionalFeatures() {
         console.log('🔧 Menginisialisasi fitur tambahan...');
         
+        // Use requestIdleCallback untuk fitur non-critical
+        const initNonCritical = () => {
+            this.initializePWA();
+            this.initializeAnalytics();
+            this.initializeSEO();
+        };
+        
         if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => {
-                this.initializeNonCriticalFeatures();
-            });
+            requestIdleCallback(initNonCritical);
         } else {
-            setTimeout(() => {
-                this.initializeNonCriticalFeatures();
-            }, 2000);
+            setTimeout(initNonCritical, 2000);
         }
     }
 
-    initializeNonCriticalFeatures() {
-        // Initialize PWA features
+    initializePWA() {
         if (typeof PWAManager !== 'undefined') {
             try {
                 window.pwaManager = new PWAManager();
@@ -166,8 +301,9 @@ class App {
                 console.warn('⚠️ Gagal menginisialisasi PWA:', error);
             }
         }
-        
-        // Initialize analytics
+    }
+
+    initializeAnalytics() {
         if (typeof AnalyticsManager !== 'undefined') {
             try {
                 window.analyticsManager = new AnalyticsManager();
@@ -176,8 +312,9 @@ class App {
                 console.warn('⚠️ Gagal menginisialisasi analytics:', error);
             }
         }
-        
-        // Initialize SEO features
+    }
+
+    initializeSEO() {
         if (typeof SEOManager !== 'undefined') {
             try {
                 window.seoManager = new SEOManager();
@@ -188,68 +325,65 @@ class App {
         }
     }
 
-    bindGlobalEvents() {
-        console.log('🔗 Mengatur event listener global...');
+    performFinalUpdates() {
+        console.log('🔍 Melakukan final check...');
         
-        this.setupErrorHandling();
-        this.setupConnectivityMonitoring();
-        this.setupPerformanceMonitoring();
-        this.setupBackToTop();
-        this.setupKeyboardShortcuts();
-        this.setupVisibilityHandler();
-        this.setupResizeHandler();
+        // Update statistics
+        this.updateStatistics();
         
-        console.log('✅ Event listener global berhasil diatur');
+        // Check critical modules
+        this.checkCriticalModules();
+        
+        // Log status akhir
+        this.logFinalStatus();
     }
 
-    initializeResponsiveFeatures() {
-        console.log('📱 Menginisialisasi fitur responsif...');
+    checkCriticalModules() {
+        const criticalModules = ['themeManager', 'navigationManager', 'renderManager'];
+        const failedCriticalModules = criticalModules.filter(
+            module => this.modules[module]?.status !== 'success'
+        );
         
-        if (typeof optimizeForTouch === 'function') {
-            optimizeForTouch();
-        } else {
-            this.fallbackTouchOptimization();
-        }
-        
-        if (typeof handleOrientation === 'function') {
-            handleOrientation();
-        } else {
-            this.fallbackOrientationHandler();
-        }
-        
-        if (typeof loadResponsiveImages === 'function') {
-            setTimeout(() => {
-                loadResponsiveImages();
-            }, 500);
-        } else {
-            this.fallbackLazyLoading();
-        }
-    }
-
-    showWelcomeExperience() {
-        const firstVisit = !localStorage.getItem('hasVisited');
-        if (firstVisit) {
-            setTimeout(() => {
-                if (typeof showToast === 'function') {
-                    showToast('🎉 Selamat datang di Wisata Tangerang Selatan!');
-                }
-                localStorage.setItem('hasVisited', 'true');
-            }, 1500);
-        }
-        
-        setTimeout(() => {
-            if (typeof updateStatistics === 'function') {
-                updateStatistics();
+        if (failedCriticalModules.length > 0) {
+            console.warn('⚠️ Modul critical yang gagal:', failedCriticalModules);
+            
+            if (failedCriticalModules.length === criticalModules.length) {
+                this.showToast('Beberapa fitur mungkin tidak berfungsi. Silakan refresh halaman.', 5000);
             }
-        }, 300);
-        
-        if (window.favoritesManager) {
-            window.favoritesManager.updateFavoriteCounts();
         }
-        
-        if (typeof updateCategoryCountsDisplay === 'function') {
-            updateCategoryCountsDisplay();
-        }
+    }
+
+    logFinalStatus() {
+        const status = this.getStatus();
+        console.log('📋 Status akhir aplikasi:', status);
+    }
+
+    // ===== EVENT HANDLERS =====
+
+    setupErrorHandling() {
+        window.addEventListener('error', (e) => {
+            console.error('🚨 Error global:', e.error);
+            this.logError('Global Error', e.error);
+            this.showToast('⚠️ Terjadi kesalahan. Silakan refresh halaman.');
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('🚨 Promise rejection tidak tertangani:', e.reason);
+            this.logError('Unhandled Promise Rejection', e.reason);
+        });
+    }
+
+    setupConnectivityMonitoring() {
+        window.addEventListener('online', () => {
+            console.log('🌐 Koneksi internet tersedia');
+            this.showToast('✅ Koneksi internet tersedia', 2000);
+            if (this.isInitialized) this.refreshData();
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📴 Koneksi internet terputus');
+            this.showToast('📶 Anda sedang offline', 3000);
+        });
     }
 
     setupPerformanceMonitoring() {
@@ -274,65 +408,17 @@ class App {
         }
     }
 
-    setupErrorHandling() {
-        window.addEventListener('error', (e) => {
-            console.error('🚨 Error global:', e.error);
-            this.logError('Global Error', e.error);
-            
-            if (typeof showToast === 'function') {
-                showToast('⚠️ Terjadi kesalahan. Silakan refresh halaman.');
-            }
-        });
-
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('🚨 Promise rejection tidak tertangani:', e.reason);
-            this.logError('Unhandled Promise Rejection', e.reason);
-        });
-    }
-
-    setupConnectivityMonitoring() {
-        window.addEventListener('online', () => {
-            console.log('🌐 Koneksi internet tersedia');
-            
-            if (typeof showToast === 'function') {
-                showToast('✅ Koneksi internet tersedia', 2000);
-            }
-            
-            if (this.isInitialized) {
-                this.refreshData();
-            }
-        });
-
-        window.addEventListener('offline', () => {
-            console.log('📴 Koneksi internet terputus');
-            
-            if (typeof showToast === 'function') {
-                showToast('📶 Anda sedang offline', 3000);
-            }
-        });
-    }
-
     setupBackToTop() {
         const backToTopButton = document.getElementById('backToTop');
-        
         if (backToTopButton) {
             let scrollTimeout;
-            const scrollHandler = () => {
+            window.addEventListener('scroll', () => {
                 if (scrollTimeout) clearTimeout(scrollTimeout);
-                
                 scrollTimeout = setTimeout(() => {
                     const scrollY = window.pageYOffset;
-                    const viewportHeight = window.innerHeight;
-                    
-                    if (scrollY > viewportHeight) {
-                        backToTopButton.classList.add('visible');
-                    } else {
-                        backToTopButton.classList.remove('visible');
-                    }
+                    backToTopButton.classList.toggle('visible', scrollY > window.innerHeight);
                 }, 100);
-            };
-            
-            window.addEventListener('scroll', scrollHandler, { passive: true });
+            }, { passive: true });
             
             backToTopButton.addEventListener('click', () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -342,31 +428,12 @@ class App {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return;
-            }
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             
             if (e.key === 'Escape') {
-                if (window.mobileNavigation && window.mobileNavigation.isOpen) {
+                if (this.modules.mobileNavigation?.status === 'success' && window.mobileNavigation?.isOpen) {
                     window.mobileNavigation.closeMenu();
                     e.preventDefault();
-                } else if (typeof hideModal === 'function') {
-                    hideModal();
-                }
-            }
-            
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    searchInput.focus();
-                }
-            }
-            
-            if ((e.ctrlKey || e.metaKey) && e.key === 't') {
-                e.preventDefault();
-                if (typeof toggleTheme === 'function') {
-                    toggleTheme();
                 }
             }
         });
@@ -376,8 +443,6 @@ class App {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 this.onTabActive();
-            } else {
-                this.onTabInactive();
             }
         });
     }
@@ -392,40 +457,52 @@ class App {
         });
     }
 
-    fallbackTouchOptimization() {
-        if (this.isTouchDevice()) {
-            const touchElements = document.querySelectorAll('button, .action-btn, .filter-btn');
-            touchElements.forEach(element => {
-                element.style.minHeight = '44px';
-                element.style.minWidth = '44px';
-            });
+    // ===== UTILITY METHODS =====
+
+    onTabActive() {
+        console.log('👀 Tab aktif');
+        if (this.isInitialized) this.refreshData();
+    }
+
+    onWindowResize() {
+        console.log('📐 Ukuran window berubah');
+        if (this.modules.renderManager?.status === 'success') {
+            window.renderManager.renderHomePage();
         }
     }
 
-    fallbackOrientationHandler() {
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                if (window.renderManager) {
-                    window.renderManager.renderHomePage();
-                }
-            }, 300);
-        });
+    refreshData() {
+        console.log('🔄 Memperbarui data...');
+        this.updateStatistics();
+        this.updateCategoryCounts();
     }
 
-    fallbackLazyLoading() {
-        const lazyImages = document.querySelectorAll('img[data-src]');
-        const lazyImageObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    lazyImageObserver.unobserve(img);
-                }
-            });
-        });
+    showLoading() {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'flex';
+    }
 
-        lazyImages.forEach(img => lazyImageObserver.observe(img));
+    hideLoading() {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
+    }
+
+    showToast(message, duration = 3000) {
+        if (typeof showToast === 'function') {
+            showToast(message, duration);
+        } else {
+            console.log('Toast:', message);
+        }
+    }
+
+    logError(type, error) {
+        console.error('📝 Error logged:', { type, message: error?.message, timestamp: new Date().toISOString() });
+    }
+
+    handleInitializationError(error) {
+        console.error('💥 Gagal inisialisasi aplikasi:', error);
+        this.showToast('❌ Gagal memuat aplikasi. Silakan refresh halaman.');
+        this.hideLoading();
     }
 
     delay(ms) {
@@ -437,137 +514,53 @@ class App {
                window.location.hostname === '127.0.0.1';
     }
 
-    isTouchDevice() {
-        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    }
-
-    onTabActive() {
-        console.log('👀 Tab aktif');
-        if (this.isInitialized) {
-            this.refreshData();
-        }
-    }
-
-    onTabInactive() {
-        console.log('😴 Tab tidak aktif');
-    }
-
-    onWindowResize() {
-        console.log('📐 Ukuran window berubah');
-        if (window.renderManager) {
-            window.renderManager.renderHomePage();
-        }
-    }
-
-    showLoading() {
-        if (typeof showLoading === 'function') {
-            showLoading();
-        } else {
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) {
-                spinner.style.display = 'flex';
-            }
-        }
-    }
-
-    hideLoading() {
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        } else {
-            const spinner = document.getElementById('loadingSpinner');
-            if (spinner) {
-                spinner.style.display = 'none';
-            }
-        }
-    }
-
-    logError(type, error) {
-        const errorData = {
-            type: type,
-            message: error?.message || error?.toString(),
-            timestamp: new Date().toISOString(),
-            url: window.location.href
-        };
-        
-        console.error('📝 Error logged:', errorData);
-    }
-
-    handleInitializationError(error) {
-        console.error('💥 Gagal inisialisasi aplikasi:', error);
-        
-        if (typeof showToast === 'function') {
-            showToast('❌ Gagal memuat aplikasi. Silakan refresh halaman.');
-        }
-        
-        this.hideLoading();
-    }
-
-    refreshData() {
-        console.log('🔄 Memperbarui data...');
-        
-        if (typeof updateStatistics === 'function') {
-            updateStatistics();
-        }
-        
-        if (window.renderManager) {
-            window.renderManager.renderHomePage();
-        }
-        
-        if (window.favoritesManager) {
-            window.favoritesManager.updateFavoriteCounts();
-        }
-    }
-
     getStatus() {
         return {
             initialized: this.isInitialized,
+            modules: this.modules,
             currentSection: this.currentSection,
             online: navigator.onLine,
-            theme: localStorage.getItem('theme') || 'dark',
-            favoritesCount: window.favoritesManager ? window.favoritesManager.getFavorites().length : 0
+            theme: document.body.getAttribute('data-theme') || 'dark'
         };
     }
 }
 
-async function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        try {
-            setTimeout(async () => {
-                const registration = await navigator.serviceWorker.register('/sw.js');
-                console.log('✅ Service Worker terdaftar');
-            }, 3000);
-        } catch (error) {
-            console.error('❌ Gagal mendaftarkan Service Worker:', error);
-        }
-    }
-}
+// ===== BOOTSTRAP =====
 
-async function bootstrapApplication() {
+function bootstrapApplication() {
     console.log('🚀 Memulai aplikasi Wisata Tangerang Selatan...');
     
-    registerServiceWorker();
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => console.log('✅ Service Worker terdaftar'))
+            .catch(error => console.error('❌ Service Worker gagal:', error));
+    }
     
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                window.app = new App();
-            }, 100);
-        });
-    } else {
+    // Start app ketika DOM ready
+    const startApp = () => {
+        // Tunggu sedikit untuk memastikan semua script loaded
         setTimeout(() => {
             window.app = new App();
         }, 100);
+    };
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startApp);
+    } else {
+        startApp();
     }
 }
 
+// Global error handling
 window.addEventListener('error', (e) => {
-    console.error('💥 Error bootstrap:', e.error);
+    console.error('💥 Error selama runtime:', e.error);
 });
 
-bootstrapApplication().catch(error => {
-    console.error('💥 Bootstrap gagal:', error);
-});
+// Start the application
+bootstrapApplication();
 
+// Global function untuk mendapatkan status app
 window.getAppStatus = () => {
     return window.app ? window.app.getStatus() : { error: 'Aplikasi belum diinisialisasi' };
 };

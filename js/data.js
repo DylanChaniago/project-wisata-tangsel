@@ -437,7 +437,7 @@ function getDestinationsByDistrict(district) {
   return destinationsData[district] || [];
 }
 
-// Get destinations count by category dengan cache
+// Get destinations count by category dengan cache - DIPERBAIKI
 function getDestinationsCountByCategory() {
   if (categoryCountsCache) {
     return { ...categoryCountsCache };
@@ -446,10 +446,12 @@ function getDestinationsCountByCategory() {
   const allDests = getAllDestinations();
   const categoryCount = {};
   
+  // Initialize all categories with 0
   categoriesData.forEach(category => {
     categoryCount[category.id] = 0;
   });
   
+  // Count destinations for each category
   for (let i = 0; i < allDests.length; i++) {
     const dest = allDests[i];
     if (dest.categories && Array.isArray(dest.categories)) {
@@ -485,7 +487,7 @@ function searchDestinations(query) {
   );
 }
 
-// Filter destinations by category
+// Filter destinations by category - DIPERBAIKI
 let lastCategoryFilter = { category: null, result: null };
 
 function filterDestinationsByCategory(category) {
@@ -571,7 +573,7 @@ function getDestinationsByCategories(categoryArray) {
   );
 }
 
-// Initialize category counts
+// Initialize category counts - DIPERBAIKI
 let categoryCountsInitialized = false;
 
 function initializeCategoryCounts() {
@@ -579,45 +581,63 @@ function initializeCategoryCounts() {
   
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(updateCategoryCountsDisplay, 100);
+      setTimeout(updateCategoryCountsDisplay, 500);
     });
   } else {
-    setTimeout(updateCategoryCountsDisplay, 300);
+    setTimeout(updateCategoryCountsDisplay, 800);
   }
   
   categoryCountsInitialized = true;
 }
 
-// Update category counts display
+// Update category counts display - DIPERBAIKI
 function updateCategoryCountsDisplay() {
+  console.log('🔄 Memperbarui tampilan jumlah kategori...');
+  
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
       performCategoryCountsUpdate();
     });
   } else {
-    setTimeout(performCategoryCountsUpdate, 0);
+    setTimeout(performCategoryCountsUpdate, 100);
   }
 }
 
 function performCategoryCountsUpdate() {
-  const categoryCounts = getDestinationsCountByCategory();
-  
-  const updates = [];
-  Object.keys(categoryCounts).forEach(category => {
-    const elementId = `count${capitalizeFirst(category)}`;
-    const countElement = document.getElementById(elementId);
+  try {
+    const categoryCounts = getDestinationsCountByCategory();
     
-    if (countElement) {
-      updates.push({ element: countElement, text: `${categoryCounts[category]} destinasi` });
-    }
-  });
-  
-  if (updates.length > 0) {
-    requestAnimationFrame(() => {
-      updates.forEach(update => {
-        update.element.textContent = update.text;
-      });
+    console.log('📊 Jumlah destinasi per kategori:', categoryCounts);
+    
+    const updates = [];
+    
+    // Update category count displays
+    Object.keys(categoryCounts).forEach(category => {
+      const elementId = `count${capitalizeFirst(category)}`;
+      const countElement = document.getElementById(elementId);
+      
+      if (countElement) {
+        updates.push({ 
+          element: countElement, 
+          text: `${categoryCounts[category]} destinasi` 
+        });
+      } else {
+        console.warn(`⚠️ Element dengan ID ${elementId} tidak ditemukan`);
+      }
     });
+    
+    if (updates.length > 0) {
+      requestAnimationFrame(() => {
+        updates.forEach(update => {
+          update.element.textContent = update.text;
+        });
+        console.log('✅ Tampilan jumlah kategori berhasil diperbarui');
+      });
+    } else {
+      console.warn('⚠️ Tidak ada element kategori yang ditemukan untuk diperbarui');
+    }
+  } catch (error) {
+    console.error('❌ Gagal memperbarui tampilan jumlah kategori:', error);
   }
 }
 
@@ -671,11 +691,17 @@ function getDistrictsData() {
   return districts;
 }
 
-// Auto-initialize
+// Auto-initialize - DIPERBAIKI
 setTimeout(() => {
   console.log('📍 Modul Data Wisata Tangsel Dimuat');
-  initializeCategoryCounts();
-}, 1000);
+  console.log('📊 Total destinasi:', getAllDestinations().length);
+  console.log('🏷️ Total kategori:', getAllCategories().length);
+  
+  // Initialize category counts dengan delay lebih lama
+  setTimeout(() => {
+    initializeCategoryCounts();
+  }, 1000);
+}, 500);
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

@@ -10,6 +10,7 @@ class ThemeManager {
   init() {
     this.loadTheme();
     this.bindEvents();
+    console.log('✅ ThemeManager initialized');
   }
 
   bindEvents() {
@@ -18,10 +19,28 @@ class ThemeManager {
         this.toggleTheme();
       });
     }
+    
+    // Tambahkan event listener untuk bottom nav theme button
+    const bottomThemeBtn = document.querySelector('.bottom-nav-item[onclick="toggleTheme()"]');
+    if (bottomThemeBtn) {
+      bottomThemeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggleTheme();
+      });
+    }
+    
+    // Tambahkan event listener untuk mobile theme button
+    const mobileThemeBtn = document.querySelector('.mobile-action-btn.secondary[onclick="toggleTheme()"]');
+    if (mobileThemeBtn) {
+      mobileThemeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggleTheme();
+      });
+    }
   }
 
   toggleTheme() {
-    const currentTheme = this.body.getAttribute('data-theme');
+    const currentTheme = this.body.getAttribute('data-theme') || 'dark';
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
     this.setTheme(newTheme);
     
@@ -29,12 +48,14 @@ class ThemeManager {
     if (typeof showToast === 'function') {
       showToast(`Mode ${newTheme === 'light' ? 'terang' : 'gelap'} diaktifkan`);
     }
+    
+    console.log(`Theme changed to: ${newTheme}`);
   }
 
   setTheme(theme) {
     this.body.setAttribute('data-theme', theme);
     
-    // Update icon
+    // Update desktop theme toggle icon
     if (this.themeToggle) {
       const icon = this.themeToggle.querySelector('i');
       if (icon) {
@@ -42,13 +63,35 @@ class ThemeManager {
       }
     }
     
+    // Update bottom nav theme icon
+    const bottomThemeIcon = document.querySelector('.bottom-nav-item[onclick="toggleTheme()"] .bottom-nav-icon');
+    if (bottomThemeIcon) {
+      bottomThemeIcon.className = `fas fa-palette bottom-nav-icon`;
+    }
+    
     // Save preference to localStorage
-    localStorage.setItem('theme', theme);
+    try {
+      localStorage.setItem('theme', theme);
+    } catch (error) {
+      console.warn('⚠️ Gagal menyimpan tema ke localStorage:', error);
+    }
   }
 
   loadTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    let savedTheme = 'dark';
+    try {
+      savedTheme = localStorage.getItem('theme') || 'dark';
+    } catch (error) {
+      console.warn('⚠️ Gagal memuat tema dari localStorage:', error);
+    }
+    
+    // Validasi tema
+    if (savedTheme !== 'light' && savedTheme !== 'dark') {
+      savedTheme = 'dark';
+    }
+    
     this.setTheme(savedTheme);
+    console.log(`Theme loaded: ${savedTheme}`);
   }
 }
 
@@ -61,5 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function toggleTheme() {
   if (window.themeManager) {
     window.themeManager.toggleTheme();
+  } else {
+    console.error('ThemeManager belum diinisialisasi');
   }
 }
